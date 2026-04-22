@@ -2,32 +2,35 @@ package com.example.apo
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.ImageButton
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.cardview.widget.CardView
+import com.example.apo.databinding.ActivityPlaybackSelectionBinding
 
 class PlaybackSelectionActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivityPlaybackSelectionBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_playback_selection)
 
-        // 1. Back Button
-        findViewById<ImageButton>(R.id.btnBack).setOnClickListener {
+        // Use Binding to prevent ID mismatch crashes
+        binding = ActivityPlaybackSelectionBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Back Button
+        binding.btnBack.setOnClickListener {
             finish()
         }
 
-        // 2. Snapshots Button
-        findViewById<CardView>(R.id.cardSnapshots).setOnClickListener {
-            Toast.makeText(this, "Opening Snapshots...", Toast.LENGTH_SHORT).show()
-            // Future: startActivity(Intent(this, SnapshotGalleryActivity::class.java))
+        // Navigate to Recordings
+        binding.btnRecordings.setOnClickListener {
+            val intent = Intent(this, SavedRecordingsActivity::class.java)
+            startActivity(intent)
         }
 
-        // 3. Recordings Button
-        findViewById<CardView>(R.id.cardRecordings).setOnClickListener {
-            Toast.makeText(this, "Opening Recordings...", Toast.LENGTH_SHORT).show()
-            // Future: startActivity(Intent(this, VideoGalleryActivity::class.java))
+        // Navigate to Snapshots
+        binding.btnSnapshots.setOnClickListener {
+            val intent = Intent(this, SavedSnapshotsActivity::class.java)
+            startActivity(intent)
         }
     }
 }

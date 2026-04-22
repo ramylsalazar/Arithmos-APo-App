@@ -42,18 +42,16 @@ android {
 }
 
 dependencies {
-    // !!! IMPORTANT: These versions are compatible with SDK 33 !!!
-
-    // Core KTX 1.10.1 is the last version to support SDK 33
+    // Keep your existing androidx and material dependencies...
     implementation("androidx.core:core-ktx:1.10.1")
-
-    // Appcompat 1.6.1 is stable for SDK 33
     implementation("androidx.appcompat:appcompat:1.6.1")
-
-    // Material 1.9.0 matches SDK 33 (1.11.0 requires SDK 34)
     implementation("com.google.android.material:material:1.9.0")
-
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+
+    // --- FIXED GLIDE LINES ---
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
+    // -------------------------
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

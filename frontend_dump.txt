@@ -1,0 +1,3015 @@
+
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\androidTest\java\com\example\apo\ExampleInstrumentedTest.kt
+==================================================
+
+package com.example.apo
+
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.ext.junit.runners.AndroidJUnit4
+
+import org.junit.Test
+import org.junit.runner.RunWith
+
+import org.junit.Assert.*
+
+/**
+ * Instrumented test, which will execute on an Android device.
+ *
+ * See [testing documentation](http://d.android.com/tools/testing).
+ */
+@RunWith(AndroidJUnit4::class)
+class ExampleInstrumentedTest {
+    @Test
+    fun useAppContext() {
+        // Context of the app under test.
+        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        assertEquals("com.example.apo", appContext.packageName)
+    }
+}
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\AndroidManifest.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.APo"
+        android:usesCleartextTraffic="true"> <activity
+        android:name=".ConnectionActivity"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+    </activity>
+
+        <activity android:name=".MainActivity" android:exported="false" />
+        <activity android:name=".AlertHistoryActivity" />
+        <activity android:name=".PlaybackHistoryActivity" />
+        <activity android:name=".PlaybackSelectionActivity" />
+        <activity android:name=".SavedSnapshotsActivity" />
+        <activity android:name=".SavedRecordingsActivity" />
+        <activity android:name=".DailyLogActivity" />
+        <activity android:name=".MediaPreviewActivity" />
+
+    </application>
+
+</manifest>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\java\com\example\apo\AlertHistoryActivity.kt
+==================================================
+
+package com.example.apo
+
+import android.app.AlertDialog
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.ImageButton
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import java.text.SimpleDateFormat
+import java.util.*
+
+class AlertHistoryActivity : AppCompatActivity() {
+
+    // Main calendar instance for tracking the currently displayed month
+    private val displayCalendar = Calendar.getInstance()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_alert_history)
+
+        // 1. BACK BUTTON
+        findViewById<ImageButton>(R.id.btnBack).setOnClickListener {
+            finish()
+        }
+
+        // 2. SETUP DATE LIST (Recycler View)
+        val rv = findViewById<RecyclerView>(R.id.rvDateList)
+        rv.layoutManager = LinearLayoutManager(this)
+        rv.adapter = DateListAdapter(generateDateList()) { dateModel ->
+            openDailyLog(dateModel.fullDate)
+        }
+
+        // 3. SETUP CALENDAR POPUP
+        findViewById<View>(R.id.btnCalendar).setOnClickListener {
+            showCustomCalendarDialog()
+        }
+    }
+
+    private fun showCustomCalendarDialog() {
+        // Inflate the custom narrow layout
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_calendar, null)
+        val builder = AlertDialog.Builder(this)
+        builder.setView(dialogView)
+        val dialog = builder.create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        val tvMonthYear = dialogView.findViewById<TextView>(R.id.tvMonthYear)
+        val btnPrev = dialogView.findViewById<ImageButton>(R.id.btnPrevMonth)
+        val btnNext = dialogView.findViewById<ImageButton>(R.id.btnNextMonth)
+        val rvGrid = dialogView.findViewById<RecyclerView>(R.id.rvCalendarDays)
+
+        rvGrid.layoutManager = GridLayoutManager(this, 7)
+
+        // Function to refresh the calendar grid
+        fun updateCalendar() {
+            // Update Title (e.g., FEBRUARY 2026)
+            val titleFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+            tvMonthYear.text = titleFormat.format(displayCalendar.time).uppercase()
+
+            val days = getDaysInMonth(displayCalendar)
+
+            // Pass Year and Month to adapter to check for future dates
+            rvGrid.adapter = CalendarGridAdapter(
+                days,
+                displayCalendar.get(Calendar.YEAR),
+                displayCalendar.get(Calendar.MONTH)
+            ) { day ->
+                if (day.isNotEmpty()) {
+                    // Handle Click on Valid Date
+                    val monthFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+                    val monthYear = monthFormat.format(displayCalendar.time)
+                    val fullDate = "$day $monthYear"
+                    dialog.dismiss()
+                    openDailyLog(fullDate)
+                }
+            }
+        }
+
+        // Initial Load
+        updateCalendar()
+
+        // Handle Month Navigation
+        btnPrev.setOnClickListener {
+            displayCalendar.add(Calendar.MONTH, -1)
+            updateCalendar()
+        }
+        btnNext.setOnClickListener {
+            displayCalendar.add(Calendar.MONTH, 1)
+            updateCalendar()
+        }
+
+        dialog.show()
+    }
+
+    // Helper to generate the list of numbers for the grid
+    private fun getDaysInMonth(currentCal: Calendar): List<String> {
+        val days = mutableListOf<String>()
+        val tempCal = currentCal.clone() as Calendar
+        tempCal.set(Calendar.DAY_OF_MONTH, 1)
+
+        val firstDayOfWeek = tempCal.get(Calendar.DAY_OF_WEEK) // 1=Sun, 2=Mon...
+        val maxDays = tempCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+        // Add empty slots for days before the 1st
+        for (i in 1 until firstDayOfWeek) {
+            days.add("")
+        }
+
+        // Add days 1..31
+        for (i in 1..maxDays) {
+            days.add(i.toString())
+        }
+        return days
+    }
+
+    private fun openDailyLog(date: String) {
+        val intent = Intent(this, DailyLogActivity::class.java)
+        intent.putExtra("DATE_KEY", date)
+        startActivity(intent)
+    }
+
+    private fun generateDateList(): List<DateModel> {
+        val list = mutableListOf<DateModel>()
+        val cal = Calendar.getInstance()
+        val dateFormat = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
+        val dayFormat = SimpleDateFormat("EEEE", Locale.getDefault())
+
+        for (i in 0..14) {
+            val dateStr = dateFormat.format(cal.time)
+            val dayStr = dayFormat.format(cal.time)
+            list.add(DateModel(dateStr, dayStr, "$dateStr $dayStr"))
+            cal.add(Calendar.DAY_OF_YEAR, -1)
+        }
+        return list
+    }
+}
+
+// ==========================================
+// DATA MODELS & ADAPTERS
+// ==========================================
+
+data class DateModel(val datePart: String, val dayPart: String, val fullDate: String)
+
+// 1. Adapter for the Main Date List (Rows)
+class DateListAdapter(
+    private val dates: List<DateModel>,
+    private val onClick: (DateModel) -> Unit
+) : RecyclerView.Adapter<DateListAdapter.DateViewHolder>() {
+
+    class DateViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val tvDate: TextView = view.findViewById(R.id.tvDate)
+        val tvDay: TextView = view.findViewById(R.id.tvDay)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DateViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_date_row, parent, false)
+        return DateViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: DateViewHolder, position: Int) {
+        val item = dates[position]
+        holder.tvDate.text = item.datePart
+        holder.tvDay.text = item.dayPart
+        holder.itemView.setOnClickListener { onClick(item) }
+    }
+
+    override fun getItemCount() = dates.size
+}
+
+// 2. Adapter for the Calendar Grid (Popup)
+class CalendarGridAdapter(
+    private val days: List<String>,
+    private val displayYear: Int,
+    private val displayMonth: Int,
+    private val onClick: (String) -> Unit
+) : RecyclerView.Adapter<CalendarGridAdapter.DayViewHolder>() {
+
+    private val todayCal = Calendar.getInstance()
+
+    class DayViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val tvDay: TextView = view.findViewById(R.id.tvDay)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DayViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_calendar_day, parent, false)
+        return DayViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: DayViewHolder, position: Int) {
+        val dayStr = days[position]
+        holder.tvDay.text = dayStr
+
+        if (dayStr.isEmpty()) {
+            holder.itemView.isClickable = false
+            return
+        }
+
+        // Logic to check if date is in future
+        val day = dayStr.toInt()
+        val cellCal = Calendar.getInstance()
+        cellCal.set(displayYear, displayMonth, day)
+
+        // Reset time to midnight for accurate comparison
+        resetTime(cellCal)
+        resetTime(todayCal)
+
+        if (cellCal.after(todayCal)) {
+            // FUTURE DATE: Grey out and disable click
+            holder.tvDay.setTextColor(Color.LTGRAY)
+            holder.itemView.isClickable = false
+            holder.itemView.setOnClickListener(null)
+        } else {
+            // PAST/PRESENT: Black text and clickable
+            holder.tvDay.setTextColor(Color.BLACK)
+            holder.itemView.isClickable = true
+            holder.itemView.setOnClickListener { onClick(dayStr) }
+        }
+    }
+
+    private fun resetTime(cal: Calendar) {
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+    }
+
+    override fun getItemCount() = days.size
+}
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\java\com\example\apo\ConnectionActivity.kt
+==================================================
+
+package com.example.apo
+
+import android.content.Intent
+import android.os.Bundle
+import android.view.View
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import kotlinx.coroutines.*
+
+class ConnectionActivity : AppCompatActivity() {
+
+    private lateinit var imgLogo: ImageView
+    private lateinit var tvStatus: TextView
+    private lateinit var cardDeviceList: ScrollView
+
+    private lateinit var btnDevice1: LinearLayout
+    private lateinit var btnDevice2: LinearLayout
+    private lateinit var btnDevice3: LinearLayout
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_connection)
+
+        imgLogo = findViewById(R.id.imgLogo)
+        tvStatus = findViewById(R.id.tvStatus)
+        cardDeviceList = findViewById(R.id.cardDeviceList)
+
+        btnDevice1 = findViewById(R.id.btnDevice1)
+        btnDevice2 = findViewById(R.id.btnDevice2)
+        btnDevice3 = findViewById(R.id.btnDevice3)
+
+        simulateDeviceScan()
+    }
+
+    private fun simulateDeviceScan() {
+        tvStatus.visibility = View.VISIBLE
+        cardDeviceList.visibility = View.GONE
+
+        CoroutineScope(Dispatchers.Main).launch {
+            delay(2500)
+
+            imgLogo.visibility = View.GONE
+            tvStatus.visibility = View.GONE
+            cardDeviceList.visibility = View.VISIBLE
+
+            setupDeviceButtons()
+        }
+    }
+
+    private fun setupDeviceButtons() {
+        val emulatorHostIp = "10.0.2.2"
+
+        val clickListener = View.OnClickListener { view ->
+            val deviceName = when (view.id) {
+                R.id.btnDevice1 -> "APo-LivingRoom-A1"
+                R.id.btnDevice2 -> "APo-Bedroom-B3"
+                R.id.btnDevice3 -> "APo-Kitchen-C2"
+                else -> "APo Device"
+            }
+
+            Toast.makeText(this@ConnectionActivity, "Connecting to $deviceName...", Toast.LENGTH_SHORT).show()
+
+            val intent = Intent(this@ConnectionActivity, MainActivity::class.java)
+            intent.putExtra("TARGET_IP", emulatorHostIp)
+            startActivity(intent)
+            finish()
+        }
+
+        btnDevice1.setOnClickListener(clickListener)
+        btnDevice2.setOnClickListener(clickListener)
+        btnDevice3.setOnClickListener(clickListener)
+    }
+}
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\java\com\example\apo\DailyLogActivity.kt
+==================================================
+
+package com.example.apo
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageButton
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+
+class DailyLogActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_daily_log)
+
+        // 1. Get Date passed from previous screen
+        val dateString = intent.getStringExtra("DATE_KEY") ?: "Today"
+        findViewById<TextView>(R.id.tvDateHeader).text = dateString
+
+        // 2. Setup Back Button
+        findViewById<ImageButton>(R.id.btnBack).setOnClickListener {
+            finish()
+        }
+
+        // 3. Setup Recycler View with Data
+        val rv = findViewById<RecyclerView>(R.id.rvDailyLogs)
+        rv.layoutManager = LinearLayoutManager(this)
+        rv.adapter = DailyLogAdapter(generateDummyLogs())
+    }
+
+    // Generate Dummy Data matching your screenshot
+    private fun generateDummyLogs(): List<LogItem> {
+        return listOf(
+            LogItem("Sitting", "9:57 PM"),
+            LogItem("Standing", "9:08 PM"),
+            LogItem("Walking", "7:15 PM"),
+            LogItem("Resting", "6:09 PM"),
+            LogItem("Getting Up", "5:50 PM"),
+            LogItem("Sitting", "4:27 PM"),
+            LogItem("Resting", "3:51 PM"),
+            LogItem("Walking", "2:11 PM"),
+            LogItem("Getting Up", "1:18 PM")
+        )
+    }
+}
+
+// --- DATA MODEL ---
+data class LogItem(val name: String, val time: String)
+
+// --- ADAPTER ---
+class DailyLogAdapter(private val items: List<LogItem>) : RecyclerView.Adapter<DailyLogAdapter.LogHolder>() {
+
+    class LogHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val tvName: TextView = view.findViewById(R.id.tvActivityName)
+        val tvTime: TextView = view.findViewById(R.id.tvTime)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): LogHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_daily_log, parent, false)
+        return LogHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: LogHolder, position: Int) {
+        val item = items[position]
+        holder.tvName.text = item.name
+        holder.tvTime.text = item.time
+    }
+
+    override fun getItemCount() = items.size
+}
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\java\com\example\apo\MainActivity.kt
+==================================================
+
+package com.example.apo
+
+import android.content.Intent
+import android.graphics.*
+import android.os.*
+import android.util.Log
+import android.view.Gravity
+import android.webkit.WebSettings
+import android.widget.ImageButton
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.GravityCompat
+import com.example.apo.databinding.ActivityMainBinding
+import kotlinx.coroutines.*
+import org.json.JSONObject
+import java.io.*
+import java.net.HttpURLConnection
+import java.net.URL
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityMainBinding
+    private var isPolling = false
+    private var isRecordingLocal = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        val targetIp = intent.getStringExtra("TARGET_IP") ?: ""
+
+        // ==========================================
+        // 1. SIDE MENU LOGIC (KEEPING ORIGINAL)
+        // ==========================================
+        binding.btnMenu.setOnClickListener {
+            binding.drawerLayout.openDrawer(GravityCompat.START)
+        }
+        val headerView = binding.navView.getHeaderView(0)
+        val btnCloseDrawer = headerView.findViewById<ImageButton>(R.id.btnCloseDrawer)
+        btnCloseDrawer.setOnClickListener {
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+        }
+
+        // ==========================================
+        // 2. DASHBOARD BUTTONS (ADDING FUNCTIONALITY)
+        // ==========================================
+        binding.btnLogout.setOnClickListener {
+            val intent = Intent(this, ConnectionActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
+        }
+
+        binding.btnSnapshot.setOnClickListener {
+            takeSnapshot()
+        }
+
+        binding.btnRecord.setOnClickListener {
+            toggleRecording(targetIp)
+        }
+
+        // ==========================================
+        // 3. MENU NAVIGATION ITEMS (KEEPING ORIGINAL)
+        // ==========================================
+        binding.navView.setNavigationItemSelectedListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.nav_alerts -> startActivity(Intent(this, AlertHistoryActivity::class.java))
+                R.id.nav_playback -> startActivity(Intent(this, PlaybackSelectionActivity::class.java))
+            }
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+            true
+        }
+
+        // ==========================================
+        // 4. WEBVIEW & STATUS (KEEPING ORIGINAL)
+        // ==========================================
+        binding.webViewCam.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        }
+
+        if (targetIp.isNotEmpty()) {
+            val streamUrl = "http://$targetIp:5000/video_feed"
+            val html = "<html><body style='margin:0;background:#000;'><img src='$streamUrl' style='width:100%;height:100%;object-fit:contain;'/></body></html>"
+            binding.webViewCam.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+            isPolling = true
+            startStatusPolling(targetIp)
+        }
+    }
+
+    private fun takeSnapshot() {
+        try {
+            val bitmap = Bitmap.createBitmap(binding.webViewCam.width, binding.webViewCam.height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            binding.webViewCam.draw(canvas)
+            val snapDir = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "Arithmos/Snapshots")
+            if (!snapDir.exists()) snapDir.mkdirs()
+            val file = File(snapDir, "SNAP_${System.currentTimeMillis()}.jpg")
+            val out = FileOutputStream(file)
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
+            out.close()
+            Toast.makeText(this, "Snapshot Saved!", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e("APO", "Snapshot failed: ${e.message}")
+        }
+    }
+
+    // Inside MainActivity.kt - toggleRecording function
+    private fun toggleRecording(ip: String) {
+        isRecordingLocal = !isRecordingLocal
+        val action = if (isRecordingLocal) "start" else "stop"
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val conn = URL("http://$ip:5000/record/$action").openConnection() as HttpURLConnection
+                if (conn.responseCode == 200) {
+                    withContext(Dispatchers.Main) {
+                        if (isRecordingLocal) {
+                            // Improved Look: Red "Live" state
+                            binding.btnRecord.setColorFilter(Color.parseColor("#FF0000"))
+                            binding.btnRecord.alpha = 0.5f // Slight dimming effect
+                            Toast.makeText(this@MainActivity, "🔴 Recording Started", Toast.LENGTH_SHORT).show()
+                        } else {
+                            // Standard state
+                            binding.btnRecord.setColorFilter(Color.parseColor("#0D1B2A"))
+                            binding.btnRecord.alpha = 1.0f
+                            Toast.makeText(this@MainActivity, "✅ Recording Saved to Pi", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Connection Error", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun startStatusPolling(ip: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            while (isPolling) {
+                try {
+                    val conn = URL("http://$ip:5000/status").openConnection() as HttpURLConnection
+                    val text = conn.inputStream.bufferedReader().readText()
+                    val json = JSONObject(text)
+                    withContext(Dispatchers.Main) {
+                        binding.tvEventText.text = "${json.getString("activity")} at ${json.getString("timestamp")}"
+                    }
+                } catch (e: Exception) { }
+                delay(1000)
+            }
+        }
+    }
+
+    override fun onBackPressed() {
+        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+        } else {
+            super.onBackPressed()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        isPolling = false
+    }
+}
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\java\com\example\apo\MediaPreviewActivity.kt
+==================================================
+
+package com.example.apo
+
+import android.os.Bundle
+import android.view.View
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import com.bumptech.glide.Glide
+import com.example.apo.databinding.ActivityMediaPreviewBinding
+import java.io.File
+
+class MediaPreviewActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityMediaPreviewBinding
+    private var mediaFiles = mutableListOf<File>()
+    private var currentIndex = 0
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMediaPreviewBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        val paths = intent.getStringArrayListExtra("FILE_LIST")
+        val startPath = intent.getStringExtra("MEDIA_PATH")
+
+        // Populate the list and find where we started
+        if (paths != null && startPath != null) {
+            mediaFiles = paths.map { File(it) }.toMutableList()
+            currentIndex = mediaFiles.indexOfFirst { it.absolutePath == startPath }
+            if (currentIndex == -1) currentIndex = 0
+            if (mediaFiles.isNotEmpty()) showMedia()
+        } else {
+            Toast.makeText(this, "Failed to load media", Toast.LENGTH_SHORT).show()
+            finish()
+        }
+
+        binding.btnBack.setOnClickListener { finish() }
+
+        binding.btnNext.setOnClickListener {
+            if (currentIndex < mediaFiles.size - 1) {
+                currentIndex++
+                showMedia()
+            }
+        }
+
+        binding.btnPrev.setOnClickListener {
+            if (currentIndex > 0) {
+                currentIndex--
+                showMedia()
+            }
+        }
+
+        // FULL DELETE LOGIC
+        binding.btnDeletePreview.setOnClickListener {
+            if (mediaFiles.isNotEmpty()) {
+                val file = mediaFiles[currentIndex]
+                if (file.exists() && file.delete()) {
+                    Toast.makeText(this, "Deleted", Toast.LENGTH_SHORT).show()
+                    mediaFiles.removeAt(currentIndex)
+
+                    if (mediaFiles.isEmpty()) {
+                        finish() // Exit if no more files left
+                    } else {
+                        // Adjust index and show next available picture
+                        if (currentIndex >= mediaFiles.size) currentIndex = mediaFiles.size - 1
+                        showMedia()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showMedia() {
+        if (mediaFiles.isEmpty()) return
+
+        val file = mediaFiles[currentIndex]
+        binding.tvMediaName.text = file.name
+
+        if (file.extension.lowercase() in listOf("avi", "mp4", "mkv")) {
+            binding.imageViewer.visibility = View.GONE
+            binding.videoPlayer.visibility = View.VISIBLE
+            binding.videoPlayer.setVideoPath(file.absolutePath)
+            binding.videoPlayer.setOnPreparedListener { it.isLooping = true }
+            binding.videoPlayer.start()
+        } else {
+            binding.videoPlayer.visibility = View.GONE
+            binding.imageViewer.visibility = View.VISIBLE
+            // Use Glide to prevent the black screen error
+            Glide.with(this).load(file).into(binding.imageViewer)
+        }
+    }
+}
+
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\java\com\example\apo\PlaybackHistoryActivity.kt
+==================================================
+
+package com.example.apo
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.apo.databinding.ActivityPlaybackHistoryBinding
+
+class PlaybackHistoryActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityPlaybackHistoryBinding
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityPlaybackHistoryBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        binding.btnBack.setOnClickListener {
+            finish()
+        }
+        binding.rvPlayback.layoutManager = LinearLayoutManager(this)
+
+        // MOCK DATA: Simulating recorded videos on the Raspberry Pi
+        val videoList = listOf(
+            VideoItem("Fall Detected", "Jan 30, 10:23 AM", "00:45"),
+            VideoItem("Movement", "Jan 30, 09:15 AM", "02:10"),
+            VideoItem("Door Opened", "Jan 29, 08:00 PM", "01:05"),
+            VideoItem("Unknown Sound", "Jan 29, 06:30 PM", "00:30")
+        )
+
+        binding.rvPlayback.adapter = PlaybackAdapter(videoList) { video ->
+            // Action when a video is clicked
+            Toast.makeText(this, "Playing: ${video.title}", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+// --- DATA MODEL ---
+data class VideoItem(val title: String, val time: String, val duration: String)
+
+// --- ADAPTER ---
+class PlaybackAdapter(
+    private val videos: List<VideoItem>,
+    private val onClick: (VideoItem) -> Unit
+) : RecyclerView.Adapter<PlaybackAdapter.PlaybackViewHolder>() {
+
+    class PlaybackViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val tvTitle: TextView = view.findViewById(R.id.tvEventTitle)
+        val tvTime: TextView = view.findViewById(R.id.tvEventTime)
+        val tvDuration: TextView = view.findViewById(R.id.tvDuration)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PlaybackViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_playback, parent, false)
+        return PlaybackViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: PlaybackViewHolder, position: Int) {
+        val video = videos[position]
+        holder.tvTitle.text = video.title
+        holder.tvTime.text = video.time
+        holder.tvDuration.text = video.duration
+
+        holder.itemView.setOnClickListener { onClick(video) }
+    }
+
+    override fun getItemCount() = videos.size
+}
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\java\com\example\apo\PlaybackSelectionActivity.kt
+==================================================
+
+package com.example.apo
+
+import android.content.Intent
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import com.example.apo.databinding.ActivityPlaybackSelectionBinding
+
+class PlaybackSelectionActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityPlaybackSelectionBinding
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // Use Binding to prevent ID mismatch crashes
+        binding = ActivityPlaybackSelectionBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Back Button
+        binding.btnBack.setOnClickListener {
+            finish()
+        }
+
+        // Navigate to Recordings
+        binding.btnRecordings.setOnClickListener {
+            val intent = Intent(this, SavedRecordingsActivity::class.java)
+            startActivity(intent)
+        }
+
+        // Navigate to Snapshots
+        binding.btnSnapshots.setOnClickListener {
+            val intent = Intent(this, SavedSnapshotsActivity::class.java)
+            startActivity(intent)
+        }
+    }
+}
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\java\com\example\apo\RecordingAdapter.kt
+==================================================
+
+package com.example.apo
+
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.CheckBox
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+class RecordingAdapter(
+    private val recordingList: List<File>,
+    private val onSelectionChanged: (Int) -> Unit,
+    private val onItemClick: (File) -> Unit
+) : RecyclerView.Adapter<RecordingAdapter.RecordingViewHolder>() {
+
+    var isSelectionMode = false
+    val selectedPositions = mutableSetOf<Int>()
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecordingViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_recording, parent, false)
+        return RecordingViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: RecordingViewHolder, position: Int) {
+        holder.bind(recordingList[position], position)
+    }
+
+    override fun getItemCount(): Int = recordingList.size
+
+    inner class RecordingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val tvFileName: TextView = itemView.findViewById(R.id.tvFileName)
+        private val tvFileDetails: TextView = itemView.findViewById(R.id.tvFileDetails)
+        private val checkBox: CheckBox = itemView.findViewById(R.id.checkSelection)
+
+        fun bind(file: File, position: Int) {
+            tvFileName.text = file.name
+
+            val sdf = SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault())
+            val dateStr = sdf.format(Date(file.lastModified()))
+            val sizeStr = "${String.format("%.1f", file.length() / 1024.0 / 1024.0)} MB"
+
+            tvFileDetails.text = "$dateStr • $sizeStr"
+
+            // Show checkbox ONLY if selection mode is active
+            checkBox.visibility = if (isSelectionMode) View.VISIBLE else View.GONE
+            checkBox.isChecked = selectedPositions.contains(position)
+
+            itemView.setOnClickListener {
+                if (isSelectionMode) {
+                    toggleSelection(position)
+                } else {
+                    onItemClick(file)
+                }
+            }
+
+            itemView.setOnLongClickListener {
+                if (!isSelectionMode) {
+                    isSelectionMode = true
+                    toggleSelection(position)
+                    notifyDataSetChanged()
+                }
+                true
+            }
+
+            checkBox.setOnClickListener { toggleSelection(position) }
+        }
+
+        private fun toggleSelection(position: Int) {
+            if (selectedPositions.contains(position)) {
+                selectedPositions.remove(position)
+            } else {
+                selectedPositions.add(position)
+            }
+            notifyItemChanged(position)
+            onSelectionChanged(selectedPositions.size)
+        }
+    }
+}
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\java\com\example\apo\SavedRecordingsActivity.kt
+==================================================
+
+package com.example.apo
+
+import android.content.Intent
+import android.os.Bundle
+import android.os.Environment
+import android.view.View
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.apo.databinding.ActivitySavedRecordingsBinding
+import java.io.File
+
+class SavedRecordingsActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivitySavedRecordingsBinding
+    private lateinit var adapter: RecordingAdapter
+    private var currentFiles = listOf<File>()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivitySavedRecordingsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        binding.btnBackRecording.setOnClickListener {
+            if (::adapter.isInitialized && adapter.isSelectionMode) {
+                exitSelectionMode()
+            } else {
+                finish()
+            }
+        }
+
+        binding.btnSelectToggle.setOnClickListener {
+            if (::adapter.isInitialized && adapter.isSelectionMode) {
+                exitSelectionMode()
+            } else {
+                enterSelectionMode()
+            }
+        }
+
+        // BULK DELETE LOGIC
+        binding.btnBulkDelete.setOnClickListener {
+            val selectedIndices = adapter.selectedPositions.toList()
+            for (index in selectedIndices) {
+                if (index < currentFiles.size) {
+                    val file = currentFiles[index]
+                    if (file.exists()) file.delete()
+                }
+            }
+            Toast.makeText(this, "Deleted successfully", Toast.LENGTH_SHORT).show()
+            exitSelectionMode()
+            setupRecyclerView() // Refresh the list
+        }
+
+        setupRecyclerView()
+    }
+
+    private fun setupRecyclerView() {
+        val recordDir = File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "Arithmos/Recordings")
+
+        // Scan for mp4, avi, or mkv
+        currentFiles = if (recordDir.exists()) {
+            recordDir.listFiles()?.filter { it.extension.lowercase() in listOf("mp4", "avi", "mkv") }
+                ?.sortedByDescending { it.lastModified() } ?: emptyList()
+        } else {
+            emptyList()
+        }
+
+        if (currentFiles.isEmpty()) {
+            binding.tvEmptyMessage.visibility = View.VISIBLE
+            binding.rvRecordings.visibility = View.GONE
+            binding.btnSelectToggle.visibility = View.GONE
+        } else {
+            binding.tvEmptyMessage.visibility = View.GONE
+            binding.rvRecordings.visibility = View.VISIBLE
+            binding.btnSelectToggle.visibility = View.VISIBLE
+
+            adapter = RecordingAdapter(currentFiles,
+                onSelectionChanged = { count ->
+                    binding.tvSelectionCount.text = "$count selected"
+                    binding.layoutActions.visibility = if (count > 0 && adapter.isSelectionMode) View.VISIBLE else View.GONE
+                },
+                onItemClick = { file ->
+                    // FIX: Pass the FULL list of files so the MediaPreview arrows work without crashing
+                    val intent = Intent(this, MediaPreviewActivity::class.java)
+                    val paths = ArrayList(currentFiles.map { it.absolutePath })
+                    intent.putStringArrayListExtra("FILE_LIST", paths)
+                    intent.putExtra("MEDIA_PATH", file.absolutePath)
+                    intent.putExtra("IS_VIDEO", true) // Tells preview to use VideoPlayer
+                    startActivity(intent)
+                }
+            )
+
+            binding.rvRecordings.layoutManager = LinearLayoutManager(this)
+            binding.rvRecordings.adapter = adapter
+        }
+    }
+
+    private fun enterSelectionMode() {
+        if (::adapter.isInitialized) {
+            adapter.isSelectionMode = true
+            binding.btnSelectToggle.text = "Cancel"
+            adapter.notifyDataSetChanged()
+        }
+    }
+
+    private fun exitSelectionMode() {
+        if (::adapter.isInitialized) {
+            adapter.isSelectionMode = false
+            adapter.selectedPositions.clear()
+            binding.btnSelectToggle.text = "Select"
+            binding.layoutActions.visibility = View.GONE
+            adapter.notifyDataSetChanged()
+        }
+    }
+
+    // Auto-refresh when returning to this screen (in case a download just finished)
+    override fun onResume() {
+        super.onResume()
+        if (::adapter.isInitialized && !adapter.isSelectionMode) {
+            setupRecyclerView()
+        } else if (!::adapter.isInitialized) {
+            setupRecyclerView()
+        }
+    }
+}
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\java\com\example\apo\SavedSnapshotsActivity.kt
+==================================================
+
+package com.example.apo
+
+import android.content.Intent
+import android.os.Bundle
+import android.os.Environment
+import android.view.View
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.GridLayoutManager
+import com.example.apo.databinding.ActivitySavedSnapshotsBinding
+import java.io.File
+
+class SavedSnapshotsActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivitySavedSnapshotsBinding
+    private lateinit var adapter: SnapshotAdapter
+    private var currentFiles = listOf<File>()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivitySavedSnapshotsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        binding.btnBack.setOnClickListener {
+            if (adapter.isSelectionMode) exitSelectionMode() else finish()
+        }
+
+        binding.btnSelectToggle.setOnClickListener {
+            if (adapter.isSelectionMode) exitSelectionMode() else enterSelectionMode()
+        }
+
+        // FULL BULK DELETE LOGIC
+        binding.btnBulkDelete.setOnClickListener {
+            val selectedIndices = adapter.selectedPositions.toList()
+            for (index in selectedIndices) {
+                if (index < currentFiles.size) {
+                    val file = currentFiles[index]
+                    if (file.exists()) file.delete()
+                }
+            }
+            Toast.makeText(this, "Deleted successfully", Toast.LENGTH_SHORT).show()
+            exitSelectionMode()
+            setupRecyclerView() // Refresh the grid
+        }
+
+        setupRecyclerView()
+    }
+
+    private fun setupRecyclerView() {
+        val snapDir = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "Arithmos/Snapshots")
+        currentFiles = if (snapDir.exists()) snapDir.listFiles()?.filter { it.extension.lowercase() in listOf("jpg", "png") }?.toList() ?: emptyList() else emptyList()
+
+        adapter = SnapshotAdapter(currentFiles,
+            onSelectionChanged = { count ->
+                binding.tvSelectionCount.text = "$count selected"
+                binding.layoutActions.visibility = if (count > 0 && adapter.isSelectionMode) View.VISIBLE else View.GONE
+            },
+            onImageClick = { file ->
+                // BUG 1 FIX: Passes ALL paths to MediaPreviewActivity so it knows what to load
+                val intent = Intent(this, MediaPreviewActivity::class.java)
+                val paths = ArrayList(currentFiles.map { it.absolutePath })
+                intent.putStringArrayListExtra("FILE_LIST", paths)
+                intent.putExtra("MEDIA_PATH", file.absolutePath)
+                intent.putExtra("IS_VIDEO", false)
+                startActivity(intent)
+            }
+        )
+
+        binding.rvSnapshots.layoutManager = GridLayoutManager(this, 3)
+        binding.rvSnapshots.adapter = adapter
+    }
+
+    private fun enterSelectionMode() {
+        adapter.isSelectionMode = true
+        binding.btnSelectToggle.text = "Cancel"
+        adapter.notifyDataSetChanged()
+    }
+
+    private fun exitSelectionMode() {
+        adapter.isSelectionMode = false
+        adapter.selectedPositions.clear()
+        binding.btnSelectToggle.text = "Select"
+        binding.layoutActions.visibility = View.GONE
+        adapter.notifyDataSetChanged()
+    }
+
+    // Refresh the grid automatically when coming back from preview
+    override fun onResume() {
+        super.onResume()
+        if (::adapter.isInitialized && !adapter.isSelectionMode) {
+            setupRecyclerView()
+        }
+    }
+}
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\java\com\example\apo\SnapshotAdapter.kt
+==================================================
+
+package com.example.apo
+
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.CheckBox
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import java.io.File
+
+class SnapshotAdapter(
+    private var snapshotList: List<File>,
+    private val onSelectionChanged: (Int) -> Unit,
+    private val onImageClick: (File) -> Unit
+) : RecyclerView.Adapter<SnapshotAdapter.SnapshotViewHolder>() {
+
+    var isSelectionMode = false
+    val selectedPositions = mutableSetOf<Int>()
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SnapshotViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_snapshot_grid, parent, false)
+        return SnapshotViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: SnapshotViewHolder, position: Int) {
+        holder.bind(snapshotList[position], position)
+    }
+
+    override fun getItemCount(): Int = snapshotList.size
+
+    inner class SnapshotViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val imgPreview: ImageView = itemView.findViewById(R.id.imgSnapshotThumb)
+        private val tvName: TextView = itemView.findViewById(R.id.tvSnapshotTileName)
+        private val checkBox: CheckBox = itemView.findViewById(R.id.checkSelection)
+
+        fun bind(file: File, position: Int) {
+            tvName.text = file.name
+
+            Glide.with(itemView.context)
+                .load(file)
+                .centerCrop()
+                .into(imgPreview)
+
+            // UI logic for circular checkbox
+            checkBox.visibility = if (isSelectionMode) View.VISIBLE else View.GONE
+            checkBox.isChecked = selectedPositions.contains(position)
+
+            itemView.setOnClickListener {
+                if (isSelectionMode) {
+                    toggleSelection(position)
+                } else {
+                    // This launches the enlarged preview
+                    onImageClick(file)
+                }
+            }
+
+            // Still allow long-press to enter selection mode automatically
+            itemView.setOnLongClickListener {
+                if (!isSelectionMode) {
+                    enterSelectionMode(position)
+                }
+                true
+            }
+        }
+
+        private fun toggleSelection(position: Int) {
+            if (selectedPositions.contains(position)) {
+                selectedPositions.remove(position)
+            } else {
+                selectedPositions.add(position)
+            }
+            notifyItemChanged(position)
+            onSelectionChanged(selectedPositions.size)
+        }
+
+        private fun enterSelectionMode(startPosition: Int) {
+            isSelectionMode = true
+            selectedPositions.add(startPosition)
+            notifyDataSetChanged()
+            onSelectionChanged(selectedPositions.size)
+        }
+    }
+}
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\activity_alert_history.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:padding="24dp">
+
+    <ImageButton
+        android:id="@+id/btnBack"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_arrow_back"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:tint="@color/black"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/imgHeaderLogo"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:src="@drawable/logo_apo"
+        android:scaleType="fitCenter"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/btnCalendar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingVertical="12dp"
+        android:paddingHorizontal="32dp"
+        android:background="@drawable/bg_pill_outline"
+        android:clickable="true"
+        android:focusable="true"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/imgHeaderLogo"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Event Logs"
+            android:textColor="@color/black"
+            android:textStyle="bold"
+            android:textSize="14sp"/>
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_dropdown"
+            app:tint="@color/black"
+            android:layout_marginStart="8dp"/>
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvDateList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="24dp"
+        app:layout_constraintTop_toBottomOf="@id/btnCalendar"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:listitem="@layout/item_date_row"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\activity_connection.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:padding="24dp">
+
+    <ImageView
+        android:id="@+id/imgLogo"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:src="@drawable/logo_apo"
+        android:scaleType="fitCenter"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.4" />
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Searching for nearby devices..."
+        android:textColor="#757575"
+        android:textSize="16sp"
+        android:visibility="invisible"
+        android:layout_marginTop="24dp"
+        app:layout_constraintTop_toBottomOf="@id/imgLogo"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="visible" />
+
+    <ScrollView
+        android:id="@+id/cardDeviceList"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:scrollbars="none"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Available Sensors"
+                android:textColor="#0D1B2A"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:layout_gravity="start"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="3 APo sensors found nearby. Tap to connect."
+                android:textColor="#757575"
+                android:textSize="14sp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="24dp"
+                android:layout_gravity="start"/>
+
+            <LinearLayout
+                android:id="@+id/btnDevice1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="16dp"
+                android:background="@drawable/bg_card_teal"
+                android:layout_marginBottom="16dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+
+                <FrameLayout
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_circle_blue"
+                    android:backgroundTint="#E0F2F1">
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_wifi"
+                        app:tint="#009688"
+                        android:layout_gravity="center"/>
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="APo-LivingRoom-A1"
+                        android:textColor="#0D1B2A"
+                        android:textStyle="bold"
+                        android:textSize="16sp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Strong (-42 dBm)"
+                        android:textColor="#757575"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="#9E9E9E"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btnDevice2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="16dp"
+                android:background="@drawable/bg_card_teal"
+                android:layout_marginBottom="16dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+
+                <FrameLayout
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_circle_blue"
+                    android:backgroundTint="#E0F2F1">
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_wifi"
+                        app:tint="#009688"
+                        android:layout_gravity="center"/>
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="APo-Bedroom-B3"
+                        android:textColor="#0D1B2A"
+                        android:textStyle="bold"
+                        android:textSize="16sp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Good (-58 dBm)"
+                        android:textColor="#757575"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="#9E9E9E"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btnDevice3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="16dp"
+                android:background="@drawable/bg_card_teal"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+
+                <FrameLayout
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_circle_blue"
+                    android:backgroundTint="#E0F2F1">
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_wifi"
+                        app:tint="#009688"
+                        android:layout_gravity="center"/>
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="APo-Kitchen-C2"
+                        android:textColor="#0D1B2A"
+                        android:textStyle="bold"
+                        android:textSize="16sp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Fair (-71 dBm)"
+                        android:textColor="#757575"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="#9E9E9E"/>
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\activity_daily_log.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/headerLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_arrow_back"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/black"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="16dp"
+            app:layout_constraintStart_toEndOf="@id/btnBack"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Activity Log"
+                android:textColor="@color/black"
+                android:textSize="20sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/tvDateHeader"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="February 6, 2026"
+                android:textColor="#757575"
+                android:textSize="14sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_graph_line"
+                app:tint="#26A69A"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="16 events"
+                android:textColor="#26A69A"
+                android:textStyle="bold"
+                android:layout_marginStart="6dp"/>
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <LinearLayout
+        android:id="@+id/subHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#F5F7FA"
+        android:paddingVertical="12dp"
+        android:paddingHorizontal="24dp"
+        app:layout_constraintTop_toBottomOf="@id/headerLayout">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="ACTIVITY"
+            android:textColor="#9E9E9E"
+            android:textSize="12sp"
+            android:letterSpacing="0.1"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TIME"
+            android:textColor="#9E9E9E"
+            android:textSize="12sp"
+            android:letterSpacing="0.1"
+            android:textStyle="bold"/>
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvDailyLogs"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/subHeader"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\activity_main.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawerLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/white"
+        android:padding="24dp">
+
+        <ImageButton
+            android:id="@+id/btnMenu"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_menu"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="#0D1B2A"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/imgAppLogo"
+            android:layout_width="130dp"
+            android:layout_height="70dp"
+            android:src="@drawable/name"
+            android:scaleType="fitCenter"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/btnMenu"
+            app:layout_constraintBottom_toBottomOf="@id/btnMenu"/>
+
+        <ImageButton
+            android:id="@+id/btnLogout"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_logout"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="#0D1B2A"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"/>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardVideo"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:layout_marginTop="24dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#0D1B2A"
+            app:strokeWidth="4dp"
+            app:cardBackgroundColor="#E0E0E0"
+            app:layout_constraintTop_toBottomOf="@id/btnMenu"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <WebView
+                android:id="@+id/webViewCam"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent"/>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <LinearLayout
+            android:id="@+id/layoutButtons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="32dp"
+            app:layout_constraintTop_toBottomOf="@id/cardVideo"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginEnd="40dp">
+
+                <ImageButton
+                    android:id="@+id/btnSnapshot"
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:src="@drawable/ic_photo_camera"
+                    android:padding="20dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_circle_blue"
+                    android:backgroundTint="#E1F5FE"
+                    app:tint="#0288D1" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Snapshot"
+                    android:textSize="14sp"
+                    android:textColor="#0D1B2A"
+                    android:layout_marginTop="8dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginStart="40dp">
+
+                <ImageButton
+                    android:id="@+id/btnRecord"
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:src="@drawable/ic_fiber_manual_record"
+                    android:padding="20dp"
+                    android:scaleType="fitCenter"
+                    android:background="@drawable/bg_circle_blue"
+                    android:backgroundTint="#FFEBEE"
+                    app:tint="#D32F2F" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Record"
+                    android:textSize="14sp"
+                    android:textColor="#0D1B2A"
+                    android:layout_marginTop="8dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/cardLatestActivity"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="48dp"
+            android:background="@drawable/bg_activity_card_shadow"
+            android:paddingHorizontal="24dp"
+            android:paddingTop="20dp"
+            android:paddingBottom="26dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/layoutButtons">
+
+            <TextView
+                android:id="@+id/tvActivityTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Latest Activity"
+                android:textColor="#546E7A"
+                android:textSize="14sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tvEventText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Sitting detected at 12:15 P.M."
+                android:textAlignment="center"
+                android:textColor="#0D1B2A"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tvActivityTitle" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/navView"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="@color/white"
+        app:headerLayout="@layout/nav_header"
+        app:menu="@menu/nav_menu" />
+
+</androidx.drawerlayout.widget.DrawerLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\activity_media_preview.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="#80000000"
+        android:gravity="center_vertical"
+        android:elevation="8dp">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_revert"
+            app:tint="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/tvMediaName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="12dp"
+            android:text="Filename.jpg"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:ellipsize="middle"
+            android:singleLine="true"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <VideoView
+        android:id="@+id/videoPlayer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/imageViewer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:visibility="gone" />
+
+    <ImageButton
+        android:id="@+id/btnPrev"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="center_vertical|start"
+        android:layout_marginStart="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_media_previous"
+        app:tint="#80FFFFFF" />
+
+    <ImageButton
+        android:id="@+id/btnNext"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="center_vertical|end"
+        android:layout_marginEnd="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_media_next"
+        app:tint="#80FFFFFF" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#80303030"
+        android:padding="16dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnDeletePreview"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Delete"
+            android:backgroundTint="#F44336"
+            android:textColor="#FFFFFF"
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/btnExportPreview"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Export to Gallery"
+            android:backgroundTint="#4CAF50"
+            android:textColor="#FFFFFF"/>
+    </LinearLayout>
+</FrameLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\activity_playback_history.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="@color/white">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_dropdown"
+            android:rotation="90"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            app:tint="@color/black"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Playback History"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:layout_centerInParent="true"/>
+    </RelativeLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvPlayback"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+</LinearLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\activity_playback_selection.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="24dp"
+    android:background="@color/white">
+
+    <ImageButton
+        android:id="@+id/btnBack"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_chevron_right"
+        android:rotation="180"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:tint="#0D1B2A"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"/>
+
+    <TextView
+        android:id="@+id/tvPlaybackTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Playback History"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#0D1B2A"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/btnBack"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/btnRecordings"
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:layout_marginTop="32dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
+        app:layout_constraintTop_toBottomOf="@id/tvPlaybackTitle">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#FFEBEE"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="24dp">
+            <ImageView android:layout_width="48dp" android:layout_height="48dp" android:src="@drawable/ic_fiber_manual_record" app:tint="#D32F2F" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="24dp" android:text="Saved Recordings" android:textColor="#0D1B2A" android:textSize="18sp" android:textStyle="bold" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/btnSnapshots"
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:layout_marginTop="20dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
+        app:layout_constraintTop_toBottomOf="@id/btnRecordings">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#E1F5FE"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="24dp">
+            <ImageView android:layout_width="48dp" android:layout_height="48dp" android:src="@drawable/ic_photo_camera" app:tint="#0288D1" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="24dp" android:text="Saved Snapshots" android:textColor="#0D1B2A" android:textSize="18sp" android:textStyle="bold" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\activity_saved_recordings.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F5F5">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/white"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp"
+        android:elevation="4dp">
+
+        <ImageButton
+            android:id="@+id/btnBackRecording"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_revert" />
+
+        <TextView
+            android:id="@+id/tvHeaderTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:text="Saved Recordings"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#333333" />
+
+        <Button
+            android:id="@+id/btnSelectToggle"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Select"
+            android:textColor="#D32F2F" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layoutActions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#FFEBEE"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvSelectionCount"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="0 selected"
+            android:textColor="#D32F2F"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btnBulkDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@android:drawable/ic_menu_delete"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="#D32F2F" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvRecordings"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="8dp"
+        android:clipToPadding="false"/>
+
+    <TextView
+        android:id="@+id/tvEmptyMessage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="No recordings found."
+        android:gravity="center"
+        android:visibility="gone" />
+
+</LinearLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\activity_saved_snapshots.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F5F5">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/white"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp"
+        android:elevation="4dp">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_revert" />
+
+        <TextView
+            android:id="@+id/tvHeaderTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:text="Saved Snapshots"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#333333" />
+
+        <Button
+            android:id="@+id/btnSelectToggle"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Select"
+            android:textColor="#0288D1" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layoutActions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#E8F5E9"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvSelectionCount"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="0 selected"
+            android:textColor="#2E7D32"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btnBulkExport"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@android:drawable/ic_menu_save"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_marginEnd="16dp" />
+
+        <ImageButton
+            android:id="@+id/btnBulkDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@android:drawable/ic_menu_delete"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvSnapshots"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="8dp"
+        android:clipToPadding="false"/>
+
+</LinearLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\dialog_calendar.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="280dp"
+    android:layout_height="500dp"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="8dp"
+    app:cardBackgroundColor="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="24dp">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp">
+
+            <ImageButton
+                android:id="@+id/btnPrevMonth"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_arrow_back"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#757575"
+                android:layout_centerVertical="true"/>
+
+            <TextView
+                android:id="@+id/tvMonthYear"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="FEBRUARY 2026"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#0D1B2A"
+                android:layout_centerInParent="true"/>
+
+            <FrameLayout
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@drawable/bg_arrow_border"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true">
+
+                <ImageButton
+                    android:id="@+id/btnNextMonth"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_arrow_back"
+                    android:rotation="180"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    app:tint="#1565C0"
+                    android:layout_gravity="center"/>
+            </FrameLayout>
+        </RelativeLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <TextView android:text="S" style="@style/CalendarDayLabel"/>
+            <TextView android:text="M" style="@style/CalendarDayLabel"/>
+            <TextView android:text="T" style="@style/CalendarDayLabel"/>
+            <TextView android:text="W" style="@style/CalendarDayLabel"/>
+            <TextView android:text="T" style="@style/CalendarDayLabel"/>
+            <TextView android:text="F" style="@style/CalendarDayLabel"/>
+            <TextView android:text="S" style="@style/CalendarDayLabel"/>
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvCalendarDays"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:overScrollMode="never"/>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\item_calendar_day.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tvDay"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:gravity="center"
+    android:text="1"
+    android:textColor="#000000"
+    android:textSize="14sp"
+    android:textStyle="bold"/>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\item_daily_log.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="16dp"
+    android:paddingHorizontal="24dp"
+    android:background="?attr/selectableItemBackground">
+
+    <ImageView
+        android:layout_width="12dp"
+        android:layout_height="12dp"
+        android:src="@drawable/shape_circle_grey"
+        android:layout_marginEnd="16dp"/>
+
+    <TextView
+        android:id="@+id/tvActivityName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Sitting"
+        android:textColor="#000000"
+        android:textSize="16sp"
+        android:textStyle="normal"/>
+
+    <TextView
+        android:id="@+id/tvTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="9:57 PM"
+        android:textColor="#757575"
+        android:fontFamily="monospace"
+        android:textSize="14sp"/>
+
+</LinearLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\item_date_row.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp"
+    android:background="?attr/selectableItemBackground">
+
+    <TextView
+        android:id="@+id/tvDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="January 1, 2026"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
+    <TextView
+        android:id="@+id/tvDay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Thursday"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\item_log.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingVertical="16dp"
+    android:paddingHorizontal="8dp">
+
+    <TextView
+        android:id="@+id/tvDate"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="January 1, 2026"
+        android:textSize="16sp"
+        android:textColor="@color/black"/>
+
+    <TextView
+        android:id="@+id/tvDay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Thursday"
+        android:textSize="16sp"
+        android:textColor="@color/black"
+        android:textStyle="bold"/>
+
+</LinearLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\item_playback.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp"
+    android:layout_marginBottom="10dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@android:drawable/ic_media_play"
+            app:tint="@color/black"/>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="16dp">
+
+            <TextView
+                android:id="@+id/tvEventTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Event Title"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/tvEventTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Time" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvDuration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="00:00"/>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\item_recording.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="6dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
+
+        <CheckBox
+            android:id="@+id/checkSelection"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <ImageView
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_fiber_manual_record"
+            app:tint="#D32F2F"
+            android:layout_marginStart="8dp"/>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="16dp">
+
+            <TextView
+                android:id="@+id/tvFileName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#0D1B2A"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tvFileDetails"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#757575"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_chevron_right"
+            app:tint="#BDBDBD" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\item_snapshot.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
+
+        <CheckBox
+            android:id="@+id/checkSnap"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" /> <ImageView
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:src="@drawable/ic_photo_camera"
+        app:tint="#0288D1"
+        android:layout_marginStart="8dp"/>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="16dp">
+
+            <TextView
+                android:id="@+id/tvSnapName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#0D1B2A"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tvSnapDetails"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#757575"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\item_snapshot_grid.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="150dp"
+    android:layout_margin="4dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="3dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <ImageView
+            android:id="@+id/imgSnapshotThumb"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:background="#F5F5F5" />
+
+        <CheckBox
+            android:id="@+id/checkSelection"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_margin="8dp"
+            android:button="@null"
+            android:background="@drawable/custom_checkbox_circle"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="45dp"
+            android:background="@drawable/bg_text_gradient"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <TextView
+            android:id="@+id/tvSnapshotTileName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="6dp"
+            android:gravity="center"
+            android:text="snapshot_01.jpg"
+            android:textColor="@color/white"
+            android:textSize="11sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\layout\nav_header.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/white"
+    android:padding="24dp">
+
+    <ImageView
+        android:id="@+id/imgNavLogo"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:src="@drawable/logo_apo"
+        android:scaleType="fitCenter"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tvHeaderSubtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Elderly Activity Monitor"
+        android:textSize="14sp"
+        android:textColor="#757575"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/imgNavLogo"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <ImageButton
+        android:id="@+id/btnCloseDrawer"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_close"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:tint="#757575"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        android:layout_marginTop="24dp"
+        app:layout_constraintTop_toBottomOf="@id/tvHeaderSubtitle" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\menu\nav_menu.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+
+        <item
+            android:id="@+id/nav_alerts"
+            android:icon="@drawable/ic_history"
+            android:title="Alert History" />
+
+        <item
+            android:id="@+id/nav_playback"
+            android:icon="@drawable/ic_play_circle"
+            android:title="Playback" />
+
+    </group>
+</menu>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\mipmap-anydpi\ic_launcher.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\mipmap-anydpi\ic_launcher_round.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\values\colors.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="primary_blue">#2196F3</color>
+    <color name="primary_dark">#1976D2</color>
+    <color name="background_gray">#F5F5F5</color>
+    <color name="text_dark">#212121</color>
+    <color name="button_text">#FFFFFF</color>
+</resources>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\values\strings.xml
+==================================================
+
+<resources>
+    <string name="app_name">APo</string>
+</resources>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\values\themes.xml
+==================================================
+
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Base.Theme.APo" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary_blue</item>
+        <item name="colorPrimaryVariant">@color/primary_dark</item>
+        <item name="android:statusBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="Theme.APo" parent="Base.Theme.APo" />
+
+    <style name="CalendarDayLabel">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textColor">#757575</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+</resources>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\values-night\themes.xml
+==================================================
+
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.APo" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/purple_200</item>
+        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <item name="colorOnPrimary">@color/black</item>
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/teal_200</item>
+        <item name="colorSecondaryVariant">@color/teal_200</item>
+        <item name="colorOnSecondary">@color/black</item>
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        <!-- Customize your theme here. -->
+    </style>
+</resources>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\xml\backup_rules.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?><!--
+   Sample backup rules file; uncomment and customize as necessary.
+   See https://developer.android.com/guide/topics/data/autobackup
+   for details.
+   Note: This file is ignored for devices older than API 31
+   See https://developer.android.com/about/versions/12/backup-restore
+-->
+<full-backup-content>
+    <!--
+   <include domain="sharedpref" path="."/>
+   <exclude domain="sharedpref" path="device.xml"/>
+-->
+</full-backup-content>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\main\res\xml\data_extraction_rules.xml
+==================================================
+
+<?xml version="1.0" encoding="utf-8"?><!--
+   Sample data extraction rules file; uncomment and customize as necessary.
+   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
+   for details.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- TODO: Use <include> and <exclude> to control what is backed up.
+        <include .../>
+        <exclude .../>
+        -->
+    </cloud-backup>
+    <!--
+    <device-transfer>
+        <include .../>
+        <exclude .../>
+    </device-transfer>
+    -->
+</data-extraction-rules>
+
+==================================================
+FILE: C:\Users\rmvsa\AndroidStudioProjects\APoo\app\src\test\java\com\example\apo\ExampleUnitTest.kt
+==================================================
+
+package com.example.apo
+
+import org.junit.Test
+
+import org.junit.Assert.*
+
+/**
+ * Example local unit test, which will execute on the development machine (host).
+ *
+ * See [testing documentation](http://d.android.com/tools/testing).
+ */
+class ExampleUnitTest {
+    @Test
+    fun addition_isCorrect() {
+        assertEquals(4, 2 + 2)
+    }
+}

@@ -1,61 +1,94 @@
 package com.example.apo
 
+import android.content.Intent
 import android.os.Bundle
-import android.view.LayoutInflater
+import android.os.Environment
 import android.view.View
-import android.view.ViewGroup
-import android.widget.ImageButton
-import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import com.example.apo.databinding.ActivitySavedSnapshotsBinding
+import java.io.File
 
 class SavedSnapshotsActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivitySavedSnapshotsBinding
+    private lateinit var adapter: SnapshotAdapter
+    private var currentFiles = listOf<File>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_saved_snapshots)
+        binding = ActivitySavedSnapshotsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        // 1. Back Button
-        findViewById<ImageButton>(R.id.btnBack).setOnClickListener {
-            finish()
+        binding.btnBack.setOnClickListener {
+            if (adapter.isSelectionMode) exitSelectionMode() else finish()
         }
 
-        // 2. Setup Grid RecyclerView
-        val rv = findViewById<RecyclerView>(R.id.rvSnapshots)
-        rv.layoutManager = GridLayoutManager(this, 3) // 3 Columns wide
-        rv.adapter = SnapshotAdapter(generateDummyData())
-    }
-
-    // Fake Data Generator
-    private fun generateDummyData(): List<SnapshotModel> {
-        val list = mutableListOf<SnapshotModel>()
-        for (i in 1..15) {
-            list.add(SnapshotModel("Feb 8", "10:${i}0 AM"))
+        binding.btnSelectToggle.setOnClickListener {
+            if (adapter.isSelectionMode) exitSelectionMode() else enterSelectionMode()
         }
-        return list
-    }
-}
 
-// --- DATA MODEL ---
-data class SnapshotModel(val date: String, val time: String)
+        // FULL BULK DELETE LOGIC
+        binding.btnBulkDelete.setOnClickListener {
+            val selectedIndices = adapter.selectedPositions.toList()
+            for (index in selectedIndices) {
+                if (index < currentFiles.size) {
+                    val file = currentFiles[index]
+                    if (file.exists()) file.delete()
+                }
+            }
+            Toast.makeText(this, "Deleted successfully", Toast.LENGTH_SHORT).show()
+            exitSelectionMode()
+            setupRecyclerView() // Refresh the grid
+        }
 
-// --- ADAPTER ---
-class SnapshotAdapter(private val items: List<SnapshotModel>) : RecyclerView.Adapter<SnapshotAdapter.Holder>() {
-
-    class Holder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvDate: TextView = view.findViewById(R.id.tvDate)
-    }
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_snapshot, parent, false)
-        return Holder(view)
-    }
-
-    override fun onBindViewHolder(holder: Holder, position: Int) {
-        val item = items[position]
-        holder.tvDate.text = "${item.date} • ${item.time}"
+        setupRecyclerView()
     }
 
-    override fun getItemCount() = items.size
+    private fun setupRecyclerView() {
+        val snapDir = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "Arithmos/Snapshots")
+        currentFiles = if (snapDir.exists()) snapDir.listFiles()?.filter { it.extension.lowercase() in listOf("jpg", "png") }?.toList() ?: emptyList() else emptyList()
+
+        adapter = SnapshotAdapter(currentFiles,
+            onSelectionChanged = { count ->
+                binding.tvSelectionCount.text = "$count selected"
+                binding.layoutActions.visibility = if (count > 0 && adapter.isSelectionMode) View.VISIBLE else View.GONE
+            },
+            onImageClick = { file ->
+                // BUG 1 FIX: Passes ALL paths to MediaPreviewActivity so it knows what to load
+                val intent = Intent(this, MediaPreviewActivity::class.java)
+                val paths = ArrayList(currentFiles.map { it.absolutePath })
+                intent.putStringArrayListExtra("FILE_LIST", paths)
+                intent.putExtra("MEDIA_PATH", file.absolutePath)
+                intent.putExtra("IS_VIDEO", false)
+                startActivity(intent)
+            }
+        )
+
+        binding.rvSnapshots.layoutManager = GridLayoutManager(this, 3)
+        binding.rvSnapshots.adapter = adapter
+    }
+
+    private fun enterSelectionMode() {
+        adapter.isSelectionMode = true
+        binding.btnSelectToggle.text = "Cancel"
+        adapter.notifyDataSetChanged()
+    }
+
+    private fun exitSelectionMode() {
+        adapter.isSelectionMode = false
+        adapter.selectedPositions.clear()
+        binding.btnSelectToggle.text = "Select"
+        binding.layoutActions.visibility = View.GONE
+        adapter.notifyDataSetChanged()
+    }
+
+    // Refresh the grid automatically when coming back from preview
+    override fun onResume() {
+        super.onResume()
+        if (::adapter.isInitialized && !adapter.isSelectionMode) {
+            setupRecyclerView()
+        }
+    }
 }
