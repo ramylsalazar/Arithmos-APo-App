@@ -33,6 +33,7 @@
         <activity android:name=".AlertHistoryActivity" />
         <activity android:name=".PlaybackHistoryActivity" />
         <activity android:name=".DailyLogActivity" />
+        <activity android:name=".SettingsActivity" />
         <activity android:name=".MediaPreviewActivity" />
 
     </application>

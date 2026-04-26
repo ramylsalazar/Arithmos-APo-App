@@ -30,7 +30,12 @@ class MainActivity : AppCompatActivity() {
 
         val targetIp = intent.getStringExtra("TARGET_IP") ?: ""
 
-        binding.btnMenu.setOnClickListener { binding.drawerLayout.openDrawer(GravityCompat.START) }
+        // ==========================================
+        // 1. SIDE MENU & HEADER LOGIC
+        // ==========================================
+        binding.btnMenu.setOnClickListener {
+            binding.drawerLayout.openDrawer(GravityCompat.START)
+        }
 
         val headerView = binding.navView.getHeaderView(0)
         headerView.findViewById<ImageButton>(R.id.btnCloseDrawer).setOnClickListener {
@@ -38,23 +43,36 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnLogout.setOnClickListener {
-            startActivity(Intent(this, ConnectionActivity::class.java))
+            val intent = Intent(this, ConnectionActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
             finish()
         }
 
+        // ==========================================
+        // 2. DASHBOARD BUTTONS
+        // ==========================================
         binding.btnSnapshot.setOnClickListener { takeSnapshot() }
         binding.btnRecord.setOnClickListener { toggleRecording(targetIp) }
 
         // ==========================================
-        // NAVIGATION DRAWER (PERMANENT TERMS ADDED)
+        // 3. NAVIGATION DRAWER ITEMS
         // ==========================================
         binding.navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.nav_alerts -> startActivity(Intent(this, AlertHistoryActivity::class.java))
-                R.id.nav_playback -> startActivity(Intent(this, PlaybackHistoryActivity::class.java))
-
-                // PERMANENT TERMS LINK
-                R.id.nav_terms -> showPermanentTerms()
+                R.id.nav_alerts -> {
+                    startActivity(Intent(this, AlertHistoryActivity::class.java))
+                }
+                R.id.nav_playback -> {
+                    startActivity(Intent(this, PlaybackHistoryActivity::class.java))
+                }
+                // NEW: Settings Screen Navigation
+                R.id.nav_settings -> {
+                    startActivity(Intent(this, SettingsActivity::class.java))
+                }
+                R.id.nav_terms -> {
+                    showPermanentTerms()
+                }
             }
             binding.drawerLayout.closeDrawer(GravityCompat.START)
             true
@@ -71,12 +89,18 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    // --- EXISTING CAMERA LOGIC ---
+    // --- CAMERA LOGIC ---
     private fun setupWebView(ip: String) {
-        binding.webViewCam.settings.javaScriptEnabled = true
+        binding.webViewCam.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        }
+
         if (ip.isNotEmpty()) {
             val streamUrl = "http://$ip:5000/video_feed"
-            val html = "<html><body style='margin:0;background:#000;'><img src='$streamUrl' style='width:100%;height:100%;object-fit:contain;'/></body></html>"
+            // Revised HTML with #D9D9D9 background to match the new layout
+            val html = "<html><body style='margin:0;background:#D9D9D9;'><img src='$streamUrl' style='width:100%;height:100%;object-fit:contain;'/></body></html>"
             binding.webViewCam.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
             isPolling = true
             startStatusPolling(ip)
@@ -88,19 +112,25 @@ class MainActivity : AppCompatActivity() {
             val bitmap = Bitmap.createBitmap(binding.webViewCam.width, binding.webViewCam.height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             binding.webViewCam.draw(canvas)
+
             val snapDir = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "Arithmos/Snapshots")
             if (!snapDir.exists()) snapDir.mkdirs()
+
             val file = File(snapDir, "SNAP_${System.currentTimeMillis()}.jpg")
             val out = FileOutputStream(file)
             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
             out.close()
+
             Toast.makeText(this, "Snapshot Saved!", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) { Log.e("APO", "Snapshot failed") }
+        } catch (e: Exception) {
+            Log.e("APO", "Snapshot failed: ${e.message}")
+        }
     }
 
     private fun toggleRecording(ip: String) {
         isRecordingLocal = !isRecordingLocal
         val action = if (isRecordingLocal) "start" else "stop"
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val conn = URL("http://$ip:5000/record/$action").openConnection() as HttpURLConnection
@@ -115,7 +145,9 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 }
-            } catch (e: Exception) { }
+            } catch (e: Exception) {
+                Log.e("APO", "Record error: ${e.message}")
+            }
         }
     }
 
@@ -124,7 +156,8 @@ class MainActivity : AppCompatActivity() {
             while (isPolling) {
                 try {
                     val conn = URL("http://$ip:5000/status").openConnection() as HttpURLConnection
-                    val json = JSONObject(conn.inputStream.bufferedReader().readText())
+                    val text = conn.inputStream.bufferedReader().readText()
+                    val json = JSONObject(text)
                     withContext(Dispatchers.Main) {
                         binding.tvEventText.text = "${json.getString("activity")} at ${json.getString("timestamp")}"
                     }
@@ -134,5 +167,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onDestroy() { super.onDestroy(); isPolling = false }
+    override fun onBackPressed() {
+        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+        } else {
+            super.onBackPressed()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        isPolling = false
+    }
 }
