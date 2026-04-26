@@ -1,40 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="20dp"
-    android:background="@color/white">
+    android:background="@color/white"
+    android:paddingTop="24dp">
 
-    <RelativeLayout
+    <LinearLayout
+        android:id="@+id/layoutHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="20dp">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="20dp"
+        app:layout_constraintTop_toTopOf="parent">
 
         <ImageButton
             android:id="@+id/btnBack"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@drawable/ic_dropdown"
-            android:rotation="90"
+            android:src="@drawable/ic_chevron_right"
+            android:rotation="180"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:layout_alignParentStart="true"
-            android:layout_centerVertical="true"
-            app:tint="@color/black"/>
+            app:tint="#000000" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Playback History"
-            android:textSize="22sp"
+            android:text="Playback"
+            android:textSize="24sp"
             android:textStyle="bold"
-            android:textColor="@color/black"
-            android:layout_centerInParent="true"/>
-    </RelativeLayout>
+            android:textColor="#000000"
+            android:layout_marginStart="8dp"/>
+    </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvPlayback"
+    <LinearLayout
+        android:id="@+id/layoutTabs"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="24dp"
+        android:paddingHorizontal="24dp"
+        app:layout_constraintTop_toBottomOf="@id/layoutHeader">
 
-</LinearLayout>
+        <LinearLayout
+            android:id="@+id/tabSnapshot"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingHorizontal="8dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/tvTabSnapshot"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Snapshot"
+                android:textColor="#000000"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp"/>
+
+            <View
+                android:id="@+id/indicatorSnapshot"
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:background="#000000"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/tabRecording"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginStart="24dp"
+            android:paddingHorizontal="8dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/tvTabRecording"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Recording"
+                android:textColor="#757575"
+                android:textSize="16sp"
+                android:textStyle="normal"
+                android:layout_marginBottom="8dp"/>
+
+            <View
+                android:id="@+id/indicatorRecording"
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:background="@android:color/transparent"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <View
+        android:id="@+id/tabDivider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        android:layout_marginHorizontal="24dp"
+        app:layout_constraintTop_toBottomOf="@id/layoutTabs"/>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="24dp"
+        app:layout_constraintTop_toBottomOf="@id/tabDivider"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvSnapshots"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingHorizontal="20dp"
+            android:clipToPadding="false"
+            android:visibility="visible"
+            tools:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+            tools:spanCount="2"
+            tools:listitem="@layout/item_snapshot"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvRecordings"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingHorizontal="24dp"
+            android:clipToPadding="false"
+            android:visibility="gone"
+            tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/item_recording"/>
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -32,9 +32,6 @@
         <activity android:name=".MainActivity" android:exported="false" />
         <activity android:name=".AlertHistoryActivity" />
         <activity android:name=".PlaybackHistoryActivity" />
-        <activity android:name=".PlaybackSelectionActivity" />
-        <activity android:name=".SavedSnapshotsActivity" />
-        <activity android:name=".SavedRecordingsActivity" />
         <activity android:name=".DailyLogActivity" />
         <activity android:name=".MediaPreviewActivity" />
 

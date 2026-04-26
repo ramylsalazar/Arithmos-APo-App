@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Privacy and Ethical Usage"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#0D1B2A"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="By using Arithmos-APo, you acknowledge:\n\n1. LOCAL DATA: All snapshots and recordings are stored locally on your device. The developers do not have access to your feed.\n\n2. ETHICAL USE: You agree not to use this device for unauthorized surveillance or in private spaces without the explicit consent of all parties.\n\n3. NOTIFICATION: You are responsible for informing persons in the camera's view that behavioral detection is active.\n\n4. SECURITY: Use a strong Wi-Fi password to protect your local stream."
+            android:lineSpacingExtra="4dp"
+            android:textColor="#455A64"
+            android:textSize="14sp" />
+    </LinearLayout>
+</ScrollView>

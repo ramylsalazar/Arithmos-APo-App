@@ -1,73 +1,97 @@
 package com.example.apo
 
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
-import android.view.LayoutInflater
+import android.os.Environment
 import android.view.View
-import android.view.ViewGroup
+import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.apo.databinding.ActivityPlaybackHistoryBinding
+import java.io.File
 
 class PlaybackHistoryActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityPlaybackHistoryBinding
+    private lateinit var rvSnapshots: RecyclerView
+    private lateinit var rvRecordings: RecyclerView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityPlaybackHistoryBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setContentView(R.layout.activity_playback_history)
 
-        binding.btnBack.setOnClickListener {
-            finish()
+        findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
+        rvSnapshots = findViewById(R.id.rvSnapshots)
+        rvRecordings = findViewById(R.id.rvRecordings)
+
+        rvSnapshots.layoutManager = GridLayoutManager(this, 2)
+        rvRecordings.layoutManager = LinearLayoutManager(this)
+
+        setupTabs()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshData()
+    }
+
+    private fun refreshData() {
+        val snapDir = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "Arithmos/Snapshots")
+        val recDir = File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "Arithmos/Recordings")
+
+        // Set Snapshot Adapter
+        rvSnapshots.adapter = SnapshotAdapter(loadFiles(snapDir)) { file ->
+            openPreview(file)
         }
-        binding.rvPlayback.layoutManager = LinearLayoutManager(this)
 
-        // MOCK DATA: Simulating recorded videos on the Raspberry Pi
-        val videoList = listOf(
-            VideoItem("Fall Detected", "Jan 30, 10:23 AM", "00:45"),
-            VideoItem("Movement", "Jan 30, 09:15 AM", "02:10"),
-            VideoItem("Door Opened", "Jan 29, 08:00 PM", "01:05"),
-            VideoItem("Unknown Sound", "Jan 29, 06:30 PM", "00:30")
-        )
-
-        binding.rvPlayback.adapter = PlaybackAdapter(videoList) { video ->
-            // Action when a video is clicked
-            Toast.makeText(this, "Playing: ${video.title}", Toast.LENGTH_SHORT).show()
+        // Set Recording Adapter
+        rvRecordings.adapter = RecordingAdapter(loadFiles(recDir), { /* selection logic */ }) { file ->
+            openPreview(file)
         }
     }
-}
 
-// --- DATA MODEL ---
-data class VideoItem(val title: String, val time: String, val duration: String)
-
-// --- ADAPTER ---
-class PlaybackAdapter(
-    private val videos: List<VideoItem>,
-    private val onClick: (VideoItem) -> Unit
-) : RecyclerView.Adapter<PlaybackAdapter.PlaybackViewHolder>() {
-
-    class PlaybackViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvTitle: TextView = view.findViewById(R.id.tvEventTitle)
-        val tvTime: TextView = view.findViewById(R.id.tvEventTime)
-        val tvDuration: TextView = view.findViewById(R.id.tvDuration)
+    private fun openPreview(file: File) {
+        val intent = Intent(this, MediaPreviewActivity::class.java)
+        intent.putExtra("FILE_PATH", file.absolutePath)
+        startActivity(intent)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PlaybackViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_playback, parent, false)
-        return PlaybackViewHolder(view)
+    private fun setupTabs() {
+        val tabSnapshot = findViewById<LinearLayout>(R.id.tabSnapshot)
+        val tabRecording = findViewById<LinearLayout>(R.id.tabRecording)
+        val tvTabSnapshot = findViewById<TextView>(R.id.tvTabSnapshot)
+        val tvTabRecording = findViewById<TextView>(R.id.tvTabRecording)
+        val indSnapshot = findViewById<View>(R.id.indicatorSnapshot)
+        val indRecording = findViewById<View>(R.id.indicatorRecording)
+
+        tabSnapshot.setOnClickListener {
+            updateTabUI(tvTabSnapshot, indSnapshot, tvTabRecording, indRecording)
+            rvSnapshots.visibility = View.VISIBLE
+            rvRecordings.visibility = View.GONE
+        }
+
+        tabRecording.setOnClickListener {
+            updateTabUI(tvTabRecording, indRecording, tvTabSnapshot, indSnapshot)
+            rvRecordings.visibility = View.VISIBLE
+            rvSnapshots.visibility = View.GONE
+        }
     }
 
-    override fun onBindViewHolder(holder: PlaybackViewHolder, position: Int) {
-        val video = videos[position]
-        holder.tvTitle.text = video.title
-        holder.tvTime.text = video.time
-        holder.tvDuration.text = video.duration
-
-        holder.itemView.setOnClickListener { onClick(video) }
+    private fun updateTabUI(activeTv: TextView, activeInd: View, inactiveTv: TextView, inactiveInd: View) {
+        activeTv.setTextColor(Color.BLACK)
+        activeTv.setTypeface(null, Typeface.BOLD)
+        activeInd.setBackgroundColor(Color.BLACK)
+        inactiveTv.setTextColor(Color.GRAY)
+        inactiveTv.setTypeface(null, Typeface.NORMAL)
+        inactiveInd.setBackgroundColor(Color.TRANSPARENT)
     }
 
-    override fun getItemCount() = videos.size
+    private fun loadFiles(directory: File): List<File> {
+        if (!directory.exists()) return emptyList()
+        return directory.listFiles()?.filter { it.isFile }?.sortedByDescending { it.lastModified() } ?: emptyList()
+    }
 }

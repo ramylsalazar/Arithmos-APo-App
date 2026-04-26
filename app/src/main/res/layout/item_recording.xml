@@ -1,61 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="8dp"
-    android:layout_marginVertical="6dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp">
+    android:paddingBottom="16dp">
 
-    <LinearLayout
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="16dp"
-        android:gravity="center_vertical">
-
-        <CheckBox
-            android:id="@+id/checkSelection"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone" />
-
-        <ImageView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_fiber_manual_record"
-            app:tint="#D32F2F"
-            android:layout_marginStart="8dp"/>
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp"
+        app:strokeColor="#0D1B2A"
+        app:strokeWidth="4dp"
+        app:cardBackgroundColor="#E0E0E0"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground">
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginStart="16dp">
+            android:orientation="horizontal"
+            android:padding="20dp"
+            android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/tvFileName"
+            <CheckBox
+                android:id="@+id/checkSelection"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#0D1B2A"
-                android:textStyle="bold"
-                android:textSize="16sp" />
+                android:visibility="gone"
+                android:layout_marginEnd="12dp"/>
 
             <TextView
-                android:id="@+id/tvFileDetails"
-                android:layout_width="wrap_content"
+                android:id="@+id/tvRecordingDate"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:textColor="#757575"
-                android:textSize="12sp" />
+                android:layout_weight="1"
+                android:text="02/09/2026 at 3:38 A.M."
+                android:textColor="#000000"
+                android:textSize="16sp"
+                android:textStyle="normal"/>
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_chevron_right"
+                app:tint="#000000"/>
         </LinearLayout>
 
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_chevron_right"
-            app:tint="#BDBDBD" />
-    </LinearLayout>
-</com.google.android.material.card.MaterialCardView>
+    </com.google.android.material.card.MaterialCardView>
+</LinearLayout>

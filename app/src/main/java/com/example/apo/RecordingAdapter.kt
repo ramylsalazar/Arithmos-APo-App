@@ -32,38 +32,41 @@ class RecordingAdapter(
     override fun getItemCount(): Int = recordingList.size
 
     inner class RecordingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val tvFileName: TextView = itemView.findViewById(R.id.tvFileName)
-        private val tvFileDetails: TextView = itemView.findViewById(R.id.tvFileDetails)
-        val checkBox: CheckBox = itemView.findViewById(R.id.checkSelection)
+        // Updated ID to match the new layout
+        private val tvRecordingDate: TextView = itemView.findViewById(R.id.tvRecordingDate)
+        // Added nullable in case we don't use it, but we will add it to the XML below!
+        val checkBox: CheckBox? = itemView.findViewById(R.id.checkSelection)
 
         fun bind(file: File, position: Int) {
-            tvFileName.text = file.name
-
-            val sdf = SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault())
+            // Format the date to match your design (e.g., "02/09/2026 at 3:38 A.M.")
+            val sdf = SimpleDateFormat("MM/dd/yyyy 'at' h:mm a", Locale.getDefault())
             val dateStr = sdf.format(Date(file.lastModified()))
-            val sizeStr = "${String.format("%.1f", file.length() / 1024.0 / 1024.0)} MB"
 
-            tvFileDetails.text = "$dateStr • $sizeStr"
+            tvRecordingDate.text = dateStr
 
-            // Remove listener before setting state to avoid side effects during recycling
-            checkBox.setOnCheckedChangeListener(null)
-            
-            // Show checkbox ONLY if selection mode is active
-            checkBox.visibility = if (isSelectionMode) View.VISIBLE else View.GONE
-            checkBox.isChecked = selectedPositions.contains(position)
+            // Handle Checkbox Selection Logic safely
+            checkBox?.let { cb ->
+                // Remove listener before setting state to avoid side effects
+                cb.setOnCheckedChangeListener(null)
 
-            checkBox.setOnCheckedChangeListener { _, isChecked ->
-                val currentPos = adapterPosition
-                if (currentPos != RecyclerView.NO_POSITION) {
-                    if (isChecked) {
-                        selectedPositions.add(currentPos)
-                    } else {
-                        selectedPositions.remove(currentPos)
+                // Show checkbox ONLY if selection mode is active
+                cb.visibility = if (isSelectionMode) View.VISIBLE else View.GONE
+                cb.isChecked = selectedPositions.contains(position)
+
+                cb.setOnCheckedChangeListener { _, isChecked ->
+                    val currentPos = adapterPosition
+                    if (currentPos != RecyclerView.NO_POSITION) {
+                        if (isChecked) {
+                            selectedPositions.add(currentPos)
+                        } else {
+                            selectedPositions.remove(currentPos)
+                        }
+                        onSelectionChanged(selectedPositions.size)
                     }
-                    onSelectionChanged(selectedPositions.size)
                 }
             }
 
+            // Click Listeners
             itemView.setOnClickListener {
                 val currentPos = adapterPosition
                 if (currentPos != RecyclerView.NO_POSITION) {
@@ -80,6 +83,7 @@ class RecordingAdapter(
                 if (currentPos != RecyclerView.NO_POSITION && !isSelectionMode) {
                     isSelectionMode = true
                     toggleSelection(currentPos)
+                    // Update all items to show their checkboxes
                     notifyDataSetChanged()
                 }
                 true
