@@ -1,5 +1,6 @@
 package com.example.apo
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.ImageButton
 import android.widget.TextView
@@ -38,22 +39,23 @@ class SettingsActivity : AppCompatActivity() {
                     val prefs = getSharedPreferences("APoPrefs", MODE_PRIVATE)
                     prefs.edit().clear().apply()
                     Toast.makeText(this, "App Reset Successfully", Toast.LENGTH_SHORT).show()
-                    finishAffinity() // Closes all activities
+
+                    // After reset, send them back to the start
+                    val intent = Intent(this, ConnectionActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
                 }
                 .setNegativeButton("Cancel", null)
                 .show()
         }
 
-        // Reuse the Terms Dialog logic we made earlier
+        // UPDATED: Now launches the professional TermsActivity layout
         btnTerms.setOnClickListener {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("Terms & Privacy")
-                .setMessage("• Data remains local.\n• Unauthorized surveillance is prohibited.\n• Behavioral detection active.")
-                .setPositiveButton("Close", null)
-                .show()
+            startActivity(Intent(this, TermsActivity::class.java))
         }
 
-        // Entity Box Toggle (Communication with Pi would go here)
+        // Entity Box Toggle
         switchEntity.setOnCheckedChangeListener { _, isChecked ->
             val status = if (isChecked) "ON" else "OFF"
             Toast.makeText(this, "Entity Boxes: $status", Toast.LENGTH_SHORT).show()

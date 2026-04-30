@@ -10,7 +10,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import com.example.apo.databinding.ActivityMainBinding
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.io.*
@@ -66,12 +65,12 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_playback -> {
                     startActivity(Intent(this, PlaybackHistoryActivity::class.java))
                 }
-                // NEW: Settings Screen Navigation
                 R.id.nav_settings -> {
                     startActivity(Intent(this, SettingsActivity::class.java))
                 }
+                // UPDATED: Now launches the professional TermsActivity instead of a dialog
                 R.id.nav_terms -> {
-                    showPermanentTerms()
+                    startActivity(Intent(this, TermsActivity::class.java))
                 }
             }
             binding.drawerLayout.closeDrawer(GravityCompat.START)
@@ -79,14 +78,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         setupWebView(targetIp)
-    }
-
-    private fun showPermanentTerms() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Terms & Privacy")
-            .setMessage("• Data remains local to your device.\n• No cloud storage is used.\n• Behavioral detection is performed on-device via MobileNet.\n• Unauthorized surveillance is strictly prohibited.")
-            .setPositiveButton("Close", null)
-            .show()
     }
 
     // --- CAMERA LOGIC ---
