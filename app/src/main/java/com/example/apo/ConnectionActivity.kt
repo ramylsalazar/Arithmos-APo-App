@@ -9,7 +9,6 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.*
 
 class ConnectionActivity : AppCompatActivity() {
@@ -57,38 +56,32 @@ class ConnectionActivity : AppCompatActivity() {
                 else -> "APo Device"
             }
 
-            // TRIGGER TERMS CHECK BEFORE NAVIGATION
-            checkTermsAndProceed {
-                Toast.makeText(this, "Connecting to $deviceName...", Toast.LENGTH_SHORT).show()
-                val intent = Intent(this, MainActivity::class.java)
-                intent.putExtra("TARGET_IP", emulatorHostIp)
-                startActivity(intent)
-                finish()
-            }
+            // PASS THE DEVICE INFO TO THE CHECK FUNCTION
+            checkTermsAndProceed(deviceName, emulatorHostIp)
         }
         btnDevice1.setOnClickListener(clickListener)
         btnDevice2.setOnClickListener(clickListener)
         btnDevice3.setOnClickListener(clickListener)
     }
 
-    private fun checkTermsAndProceed(onAccepted: () -> Unit) {
+    private fun checkTermsAndProceed(deviceName: String, ip: String) {
         val prefs = getSharedPreferences("APoPrefs", MODE_PRIVATE)
         val hasAccepted = prefs.getBoolean("terms_accepted", false)
 
         if (hasAccepted) {
-            onAccepted()
+            // IF ALREADY ACCEPTED, PROCEED NORMALLY
+            Toast.makeText(this, "Connecting to $deviceName...", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, MainActivity::class.java)
+            intent.putExtra("TARGET_IP", ip)
+            startActivity(intent)
+            finish()
         } else {
-            MaterialAlertDialogBuilder(this)
-                .setView(R.layout.dialog_terms)
-                .setCancelable(false)
-                .setPositiveButton("I Agree") { _, _ ->
-                    prefs.edit().putBoolean("terms_accepted", true).apply()
-                    onAccepted()
-                }
-                .setNegativeButton("Decline") { _, _ ->
-                    finish() // Exit app if they decline
-                }
-                .show()
+            // NEW LOGIC: LAUNCH THE PROFESSIONAL TERMS ACTIVITY
+            // We pass the IP so TermsActivity can pass it to MainActivity after acceptance
+            val intent = Intent(this, TermsActivity::class.java)
+            intent.putExtra("TARGET_IP", ip)
+            startActivity(intent)
+            // We don't finish() yet because the user needs to accept first
         }
     }
 }
